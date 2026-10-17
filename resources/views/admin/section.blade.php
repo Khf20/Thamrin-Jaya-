@@ -1,6 +1,9 @@
 @extends('layouts.admin')
 @section('title', $section->exists ? 'Edit section' : 'Tambah section')
 @section('content')
+@if(\App\Actions\Cms\GlobalindoPilot::applies($site) && isset(\App\Actions\Cms\GlobalindoPilot::SECTIONS[$page->slug]))
+<div class="notice"><strong>Acuan pilot Globalindo — {{ $page->title }}</strong><p>{{ implode(' → ', array_column(\App\Actions\Cms\GlobalindoPilot::SECTIONS[$page->slug], 2)) }}</p><p>Empat menu utama menuju bagian pada satu halaman. Bagian kosong/nonaktif tidak tampil publik. Lengkapi konten resmi lalu aktifkan section; jangan mengisi klaim contoh agar halaman terlihat penuh.</p></div>
+@endif
 @if($section->exists && ($section->settings['source'] ?? null) === 'items')<p><a class="button button-outline" href="{{ route('admin.sites.pages.sections.items.index', [$site, $page, $section]) }}">Kelola item section →</a></p>@endif
 <a class="text-link" href="{{ route('admin.sites.pages.sections.index', [$site, $page]) }}">← Section {{ $page->title }}</a>
 <div class="admin-heading"><div><h1>{{ $section->exists ? 'Edit section' : 'Tambah section' }}</h1><p>{{ $site->resolvedName() }} / {{ $page->title }}</p></div></div>
@@ -8,6 +11,7 @@
 <form class="panel form-panel" method="GET" action="{{ $section->exists ? route('admin.sites.pages.sections.edit', [$site, $page, $section]) : route('admin.sites.pages.sections.create', [$site, $page]) }}"><label class="field"><span>Jenis section</span><select name="type">@foreach($types as $option)<option @selected($type === $option)>{{ $option }}</option>@endforeach</select></label><p>Pergantian jenis pada section berisi konten akan ditolak. Pilih jenis sebelum mengisi form; isian yang belum disimpan tidak ikut dipindahkan.</p><button class="button button-outline">Buka form jenis ini</button></form>
 <form class="panel form-panel" method="POST" enctype="multipart/form-data" action="{{ $section->exists ? route('admin.sites.pages.sections.update', [$site, $page, $section]) : route('admin.sites.pages.sections.store', [$site, $page]) }}">@csrf @if($section->exists) @method('PUT') @endif
 <input type="hidden" name="type" value="{{ $type }}"><input type="hidden" name="variant" value="default">
+@if(\App\Actions\Cms\GlobalindoPilot::applies($site))<p class="notice">{{ \App\Actions\Cms\GlobalindoPilot::GUIDANCE[$type] ?? 'Bagian ini berada di luar susunan pilot. Pertahankan nonaktif jika tidak diperlukan.' }}</p>@endif
 <p>Jenis: <strong>{{ $type }}</strong>. Sumber konten: <strong>{{ $source }}</strong>.</p>
 <x-field name="key" label="Key / anchor permanen" :value="$section->key" :readonly="$section->exists" required maxlength="100" hint="Huruf kecil, angka, tanda hubung. Harus unik pada halaman ini dan tidak dapat diganti setelah dibuat."/>
 <x-field name="title" label="Judul section" :value="$section->title" maxlength="255"/>

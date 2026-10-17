@@ -36,7 +36,7 @@ class PortalController extends Controller
         $page = $site->pages()->published()->where('slug', 'contact')->first()
             ?? $site->pages()->published()->where('slug', 'home')->firstOrFail();
         $section = $content->sections($page, false)->firstWhere('type', 'contact');
-        $url = $content->pageUrl($page).($section ? '#'.$section->key : '');
+        $url = $section ? $content->sectionUrlFor($page, $section->key) : $content->pageUrl($page);
 
         return redirect()->to($url)->with('success', 'Pesan Anda telah diterima oleh '.$company->short_name.'. Terima kasih telah menghubungi kami.');
     }

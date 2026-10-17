@@ -39,7 +39,7 @@ class CompanyController extends Controller
     {
         $company = $creator->create($request->validated());
 
-        return to_route('admin.companies.edit', $company)->with('success', 'Perusahaan, situs, empat halaman draft, dan navigasi berhasil dibuat. Lengkapi profil dan branding sebelum mengaktifkan.');
+        return to_route('admin.companies.edit', $company)->with('success', 'Perusahaan, situs, empat halaman draft dengan 13 section awal, dan navigasi berhasil dibuat. Lengkapi profil dan branding sebelum mengaktifkan.');
     }
 
     public function destroy(Company $company, MediaManager $media): RedirectResponse

@@ -41,12 +41,30 @@ class SiteManagementTest extends TestCase
         $this->assertFalse($company->is_active);
         $this->assertFalse($company->is_demo);
         $this->assertSame(4, $company->site->pages()->where('is_published', false)->count());
+        $this->assertSame(13, $company->site->pages()->withCount('sections')->get()->sum('sections_count'));
         $this->assertSame(2, $company->site->menus()->count());
         $this->assertDatabaseCount('menu_items', 8);
         $this->assertSame($company->id, $company->site->company_id);
+        $featuredProducts = $company->site->pages()->where('slug', 'home')->firstOrFail()->sections()->where('key', 'featured-products')->firstOrFail();
+        $this->assertSame('products', $featuredProducts->type);
+        $this->assertSame(['source' => 'company'], $featuredProducts->settings);
         $this->get('/')->assertDontSee('PT Unit Baru');
         $this->post(route('admin.companies.store'), $this->companyData())->assertSessionHasErrors('slug');
         $this->assertDatabaseCount('companies', 1);
+    }
+
+    public function test_empty_default_sections_are_hidden_from_a_published_home_page(): void
+    {
+        $this->admin();
+        $this->post(route('admin.companies.store'), $this->companyData())->assertSessionHasNoErrors();
+        $company = Company::where('slug', 'unit-baru')->firstOrFail();
+        $company->update(['is_active' => true]);
+        $company->site->pages()->where('slug', 'home')->firstOrFail()->update(['is_published' => true]);
+
+        $this->get(route('company.show', $company->slug))->assertOk()
+            ->assertDontSee('cms-hero', false)
+            ->assertDontSee('featured-products', false)
+            ->assertDontSee('Our Services');
     }
 
     public function test_company_creation_rolls_back_when_site_initialization_fails(): void

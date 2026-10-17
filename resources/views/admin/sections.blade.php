@@ -1,6 +1,9 @@
 @extends('layouts.admin')
 @section('title', 'Section '.$page->title)
 @section('content')
+@if(\App\Actions\Cms\GlobalindoPilot::applies($site) && isset(\App\Actions\Cms\GlobalindoPilot::SECTIONS[$page->slug]))
+<div class="notice"><strong>Acuan pilot Globalindo — {{ $page->title }}</strong><p>{{ implode(' → ', array_column(\App\Actions\Cms\GlobalindoPilot::SECTIONS[$page->slug], 2)) }}</p><p>Empat menu utama menuju bagian pada satu halaman. Bagian kosong/nonaktif tidak tampil publik. Lengkapi konten resmi lalu aktifkan section; jangan mengisi klaim contoh agar halaman terlihat penuh.</p></div>
+@endif
 <a class="text-link" href="{{ route('admin.sites.pages.edit', [$site, $page]) }}">← {{ $site->resolvedName() }} / {{ $page->title }}</a>
 <div class="admin-heading"><div><h1>Section {{ $page->title }}</h1><p>Susun bagian halaman sesuai kebutuhan. Status halaman: {{ $page->is_published ? 'Published' : 'Draft' }}.</p></div><a class="button" href="{{ route('admin.sites.pages.sections.create', [$site, $page]) }}">+ Tambah section</a></div>
 <div class="panel">@forelse($sections as $section)<div class="content-row"><span class="row-order">{{ $section->sort_order }}</span><div><strong>{{ $section->title ?? $section->key }}</strong><p>#{{ $section->key }} · {{ $section->type }} · {{ $section->is_active ? 'Aktif' : 'Nonaktif' }} · {{ $section->items_count }} item</p></div><a class="text-link" href="{{ route('admin.sites.pages.sections.edit', [$site, $page, $section]) }}">Edit →</a></div>@empty<p class="empty-state">Belum ada section.</p>@endforelse</div>

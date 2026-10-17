@@ -45,7 +45,11 @@ class DynamicPortalController extends Controller
         $page = $site->pages()->where('slug', $pageSlug)->firstOrFail();
         abort_unless($content->pageVisible($page), 404);
 
-        return $pageSlug === 'home' ? redirect()->to($content->pageUrl($page)) : $this->render($site, $page, $content);
+        if (in_array($pageSlug, ['home', 'about-us', 'services', 'contact'], true)) {
+            return redirect()->to($content->pageUrl($page));
+        }
+
+        return $this->render($site, $page, $content);
     }
 
     public function preview(Site $site, Page $page, PublicContent $content): Response
@@ -61,10 +65,12 @@ class DynamicPortalController extends Controller
         $site->load('company');
         $page->setRelation('site', $site);
         $template = in_array($site->template_key, ContentRegistry::TEMPLATES, true) ? $site->template_key : 'default';
+        $onePage = $site->company_id !== null && $page->slug === 'home';
 
         return response()->view('portal.dynamic', [
             'site' => $site, 'page' => $page, 'company' => $site->company, 'content' => $content, 'preview' => $preview,
-            'template' => $template, 'sections' => $content->sections($page, $preview),
+            'template' => $template, 'sections' => $content->sections($page, $preview), 'onePage' => $onePage,
+            'clusters' => $onePage ? $content->onePageClusters($page, $preview) : [],
             'headerMenu' => $content->menu($site, 'header', $preview), 'footerMenu' => $content->menu($site, 'footer', $preview),
             'contact' => $site->resolvedContactDetails(),
         ])->withHeaders($preview ? ['X-Robots-Tag' => 'noindex, nofollow', 'Cache-Control' => 'private, no-store'] : []);

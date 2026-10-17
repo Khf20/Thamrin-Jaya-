@@ -84,7 +84,7 @@ class InquiryManagementTest extends TestCase
             'body' => null, 'settings' => ['source' => 'contact_details'],
         ]);
         $this->post(route('company.inquiry', $company->slug), [...$this->payload(), 'status' => 'resolved', 'read_at' => '2026-01-01'])
-            ->assertRedirect(route('company.show', $company->slug).'#contact-sales');
+            ->assertRedirect(route('company.show', $company->slug).'#cluster-home-contact-sales');
         $this->assertDatabaseHas('inquiries', ['company_id' => $company->id, 'status' => 'new', 'read_at' => null]);
     }
 

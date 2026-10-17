@@ -38,7 +38,15 @@ class PublicContent
             return route('admin.sites.pages.preview', [$page->site_id, $page]);
         }
         if ($page->site->company_id) {
-            return $page->slug === 'home' ? route('company.show', $page->site->company->slug) : route('company.page', [$page->site->company->slug, $page->slug]);
+            $home = route('company.show', $page->site->company->slug);
+
+            return match ($page->slug) {
+                'home' => $home.'#cluster-home',
+                'about-us' => $home.'#cluster-about-us',
+                'services' => $home.'#cluster-service',
+                'contact' => $home.'#cluster-contact',
+                default => route('company.page', [$page->site->company->slug, $page->slug]),
+            };
         }
 
         return match ($page->slug) {
@@ -76,8 +84,30 @@ class PublicContent
                 return in_array($section->type, ContentRegistry::availableSectionTypes($page->site->company_id !== null), true)
                     && $section->variant === 'default'
                     && ($section->settings['source'] ?? null) === ContentRegistry::source($section->type, $page->site->company_id !== null)
-                    && ($preview || ! $this->isEmpty($section, $page->site));
+                    && ($preview || ! $this->isEmpty($section, $page->site, $preview));
             });
+    }
+
+    /** @return array<string, list<array{page: Page, section: PageSection}>> */
+    public function onePageClusters(Page $home, bool $preview): array
+    {
+        $site = $home->site;
+        $pages = $site->pages()->whereIn('slug', ['home', 'about-us', 'services', 'contact'])->get()->keyBy('slug');
+        $clusters = ['home' => [], 'about-us' => [], 'service' => [], 'contact' => []];
+        $clusterPages = ['home' => 'home', 'about-us' => 'about-us', 'service' => 'services', 'contact' => 'contact'];
+
+        foreach ($clusterPages as $cluster => $pageSlug) {
+            $page = $pages->get($pageSlug);
+            if (! $page || (! $preview && ! $this->pageVisible($page))) {
+                continue;
+            }
+            $page->setRelation('site', $site);
+            foreach ($this->sections($page, $preview) as $section) {
+                $clusters[$cluster][] = ['page' => $page, 'section' => $section, 'anchor' => $this->sectionAnchor($page, $section->key, $preview)];
+            }
+        }
+
+        return $clusters;
     }
 
     /**
@@ -97,17 +127,30 @@ class PublicContent
     }
 
     /** Sections that would render only a heading are left out of the public page. */
-    private function isEmpty(PageSection $section, Site $site): bool
+    private function isEmpty(PageSection $section, Site $site, bool $preview): bool
     {
         if ($section->type === 'map') {
-            return blank($site->resolvedContactDetails()['map_query'] ?? null);
+            return blank($site->resolvedContactDetails()['map_query'] ?? null) && ! $this->demoMapPlaceholder($section, $site);
         }
-        if (! in_array($section->type, ['about', 'history'], true)) {
-            return false;
-        }
-        $narrative = $this->narrative($section, $site);
+        if (in_array($section->type, ['about', 'history'], true)) {
+            $narrative = $this->narrative($section, $site);
 
-        return blank($narrative['body']) && blank($narrative['image']);
+            return blank($narrative['body']) && blank($narrative['image']);
+        }
+
+        return in_array($section->type, [
+            'carousel', 'services', 'products', 'pillars', 'process',
+            'clients', 'capacity', 'csr', 'vision_mission', 'certifications',
+        ], true) && $this->records($section, $site, $preview)->isEmpty();
+    }
+
+    public function demoMapPlaceholder(PageSection $section, Site $site): bool
+    {
+        return $section->type === 'map'
+            && GlobalindoPilot::applies($site)
+            && $site->company->is_demo
+            && $section->subtitle === GlobalindoPilot::DEMO_MAP_SUBTITLE
+            && blank($site->resolvedContactDetails()['map_query'] ?? null);
     }
 
     public function records(PageSection $section, Site $site, bool $preview): Collection
@@ -120,13 +163,25 @@ class PublicContent
             default => ($section->settings['source'] ?? null) === 'items' ? $section->items() : null,
         };
         if ($query) {
-            return $query->when(! $preview, fn (Builder $query): Builder => $query->active())->limit($limit)->get();
+            return $query->when(! $preview, fn (Builder $query): Builder => $query->active())->limit($limit)->get()
+                ->filter(fn ($record): bool => $this->recordIsPresentable($section, $record));
         }
 
         return match ($section->type) {
             'gateway', 'group' => $this->companies()->take($limit),
             'services' => $this->services($site)->take($limit),
             default => collect(),
+        };
+    }
+
+    private function recordIsPresentable(PageSection $section, mixed $record): bool
+    {
+        return match ($section->type) {
+            'products', 'services' => filled($record->name ?? null),
+            'capacity' => filled($record->title ?? null) && filled($record->value ?? null),
+            'vision_mission' => in_array($record->key ?? null, ['vision', 'mission'], true)
+                && filled($record->title ?? null) && filled($record->body ?? null),
+            default => filled($record->title ?? null),
         };
     }
 
@@ -143,17 +198,22 @@ class PublicContent
         }
         $key = $match[1];
         if ($this->sections($page, $preview)->contains('key', $key)) {
-            return $this->pageUrl($page, $preview).'#'.$key;
+            return $this->sectionUrl($page, $key, $preview);
         }
         /** Resolve stable catalog/contact anchors across the current site. */
         if (in_array($key, ['products', 'contact'], true)) {
             $target = $page->site->pages()->where('slug', $key === 'products' ? 'services' : 'contact')->first();
             if ($target && ($preview || $this->pageVisible($target)) && $this->sections($target, $preview)->contains('key', $key)) {
-                return $this->pageUrl($target, $preview).'#'.$key;
+                return $this->sectionUrl($target, $key, $preview);
             }
         }
 
         return null;
+    }
+
+    public function sectionUrlFor(Page $page, string $anchor, bool $preview = false): string
+    {
+        return $this->sectionUrl($page, $anchor, $preview);
     }
 
     public function menu(Site $site, string $key, bool $preview): array
@@ -201,7 +261,9 @@ class PublicContent
                 return null;
             }
 
-            return $this->pageUrl($page, $preview).($item->anchor ? '#'.$item->anchor : '');
+            return $item->anchor
+                ? $this->sectionUrl($page, $item->anchor, $preview)
+                : $this->pageUrl($page, $preview);
         }
         if ($item->service_id) {
             if (! $this->services($site)->contains('id', $item->service_id)) {
@@ -216,9 +278,37 @@ class PublicContent
                 return null;
             }
 
-            return $this->pageUrl($page, $preview).'#'.$section->key.'-service-'.$item->service_id;
+            return $this->sectionUrl($page, $section->key.'-service-'.$item->service_id, $preview);
         }
 
         return $item->url && preg_match('#^https?://#i', $item->url) && filter_var($item->url, FILTER_VALIDATE_URL) ? $item->url : null;
+    }
+
+    private function sectionUrl(Page $page, string $anchor, bool $preview): string
+    {
+        $baseUrl = match (true) {
+            $preview => $this->pageUrl($page, true),
+            $page->site->company_id !== null => route('company.show', $page->site->company->slug),
+            default => $this->pageUrl($page),
+        };
+
+        return $baseUrl.'#'.$this->sectionAnchor($page, $anchor, $preview);
+    }
+
+    public function sectionAnchor(Page $page, string $anchor, bool $preview = false): string
+    {
+        if ($preview || ! $page->site->company_id) {
+            return $anchor;
+        }
+
+        $cluster = match ($page->slug) {
+            'home' => 'home',
+            'about-us' => 'about-us',
+            'services' => 'service',
+            'contact' => 'contact',
+            default => null,
+        };
+
+        return $cluster ? 'cluster-'.$cluster.'-'.$anchor : $anchor;
     }
 }

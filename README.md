@@ -26,7 +26,9 @@ npm run build
 php artisan admin:create admin@example.com
 ```
 
-Perintah terakhir meminta password minimal 12 karakter dengan huruf dan angka. Gunakan alamat email administrator yang sebenarnya. Tidak ada pendaftaran publik atau password default. Opsi `--generate` membuat password acak dan menampilkannya sekali. Perintah menolak menimpa akun yang sudah ada.
+Perintah `admin:create` meminta password minimal 12 karakter dengan huruf dan angka. Gunakan alamat email administrator yang sebenarnya. Tidak ada pendaftaran publik atau password default. Opsi `--generate` membuat password acak dan menampilkannya sekali. Perintah menolak menimpa akun yang sudah ada.
+
+Untuk membuat admin melalui seeder, isi `ADMIN_SEED_NAME`, `ADMIN_SEED_EMAIL`, dan `ADMIN_SEED_PASSWORD` pada `.env` lokal sebelum menjalankan `php artisan migrate --seed`. Password harus minimal 12 karakter, berisi huruf dan angka. Jika kedua nilai email dan password kosong, seeder melewati pembuatan admin. Seeder hanya berjalan di `local`/`testing`, tidak mengubah admin yang sudah ada, dan tidak menaikkan akun non-admin menjadi admin. Jangan commit kredensial ke repository. Gunakan salah satu cara pembuatan admin, bukan keduanya dengan email yang sama.
 
 ## Konten & CMS
 

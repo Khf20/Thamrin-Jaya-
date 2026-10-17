@@ -52,7 +52,7 @@ class PortalTest extends TestCase
         $other = Company::factory()->create();
         $this->publishSite($other);
         $this->post(route('company.inquiry', $company->slug), [...$this->inquiryData(), 'company_id' => $other->id, 'status' => 'resolved'])
-            ->assertRedirect(route('company.show', $company->slug).'#contact')->assertSessionHas('success');
+            ->assertRedirect(route('company.show', $company->slug).'#cluster-home-contact')->assertSessionHas('success');
         $this->assertDatabaseHas('inquiries', ['company_id' => $company->id, 'status' => 'new', 'email' => 'visitor@example.com']);
         $this->assertDatabaseMissing('inquiries', ['company_id' => $other->id]);
     }

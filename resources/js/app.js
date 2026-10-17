@@ -66,3 +66,5 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
         if (!window.confirm(form.dataset.confirm)) event.preventDefault();
     });
 });
+
+import './subsidiary';

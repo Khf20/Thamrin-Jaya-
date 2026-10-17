@@ -6,7 +6,7 @@ $unitTag = $headingTag === 'h1' ? 'h2' : 'h3';
 $words = preg_split('/\s+/', trim((string) ($section->title ?: $site->resolvedName())));
 $lastWord = count($words) > 1 ? array_pop($words) : null;
 @endphp
-<div class="journey-section" id="{{ $section->key }}">
+<div class="journey-section" id="{{ $sectionAnchor ?? $section->key }}">
 @if($preview && !$section->is_active)<p class="demo-note shell">Section nonaktif</p>@endif
 <div class="journey-intro"><div>
 <div class="eyebrow"><span class="journey-cmyk" aria-hidden="true"></span> {{ $site->resolvedName() }}</div>

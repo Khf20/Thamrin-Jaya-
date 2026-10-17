@@ -82,7 +82,7 @@ class ContentController extends Controller
     /** @return array<string, UploadedFile|null> */
     private function uploads(Request $request, string $type): array
     {
-        if ($type === 'products' && ($request->hasFile('image') || $request->boolean('remove_image'))) {
+        if (in_array($type, ['products', 'process-steps'], true) && ($request->hasFile('image') || $request->boolean('remove_image'))) {
             return ['image_path' => $request->file('image')];
         }
 

@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             $this->initializeCompanies();
         });
         $this->call(DynamicContentSeeder::class);
+        $this->call(AdminUserSeeder::class);
     }
 
     private function initializeCompanies(): void

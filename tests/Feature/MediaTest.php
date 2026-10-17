@@ -13,6 +13,7 @@ use App\Models\Site;
 use Illuminate\Database\QueryException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -34,11 +35,22 @@ class MediaTest extends TestCase
     {
         $this->assertSame(asset('images/globalindo.webp'), MediaManager::url('images/globalindo.webp'));
         foreach (['products/a.png', 'storage/products/a.png', '/storage/products/a.png'] as $path) {
-            $this->assertSame(Storage::disk('public')->url('products/a.png'), MediaManager::url($path));
+            $this->assertSame(url('/storage/products/a.png'), MediaManager::url($path));
         }
         foreach (['../.env', 'media/../../.env', 'storage/media/../secret', 'https://evil.test/a.png', '//evil.test/a.png', 'media/%2e%2e/a.png', 'media/a\\b.png', 'images/../.env', 'javascript:alert(1)'] as $path) {
             $this->assertNull(MediaManager::url($path));
         }
+    }
+
+    public function test_uploaded_media_url_uses_the_active_request_host_and_port(): void
+    {
+        config(['app.url' => 'http://localhost:8000']);
+        app('url')->setRequest(Request::create('http://127.0.0.1:8001/'));
+
+        $this->assertSame(
+            'http://127.0.0.1:8001/storage/media/images/company-photo.jpg',
+            MediaManager::url('media/images/company-photo.jpg'),
+        );
     }
 
     public function test_replacing_shared_upload_preserves_other_site_reference_until_last_removal(): void

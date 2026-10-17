@@ -22,6 +22,7 @@ class MediaManager
     public const COLUMNS = [
         'companies' => ['banner_path', 'about_image_path'],
         'products' => ['image_path'],
+        'process_steps' => ['image_path'],
         'sites' => ['logo_path', 'favicon_path'],
         'pages' => ['og_image_path'],
         'page_sections' => ['image_path'],
@@ -56,7 +57,7 @@ class MediaManager
         }
         $upload = self::uploadPath($path);
 
-        return $upload ? Storage::disk('public')->url($upload) : null;
+        return $upload ? url('/storage/'.$upload) : null;
     }
 
     /**
@@ -193,7 +194,7 @@ class MediaManager
             }
         }
         $relations = match (true) {
-            $record instanceof Company => ['site', 'products'],
+            $record instanceof Company => ['site', 'products', 'processSteps'],
             $record instanceof Site => ['pages'],
             $record instanceof Page => ['sections'],
             $record instanceof PageSection => ['items'],

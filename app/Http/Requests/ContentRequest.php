@@ -38,16 +38,26 @@ class ContentRequest extends FormRequest
                 'name' => ['required', 'string', 'max:150'],
                 'category' => ['required', 'string', 'max:100'],
                 'specifications' => ['nullable', 'string', 'max:5000'],
-                'image' => [...MediaManager::imageRules(), Rule::prohibitedIf($this->boolean('remove_image'))],
-                'remove_image' => ['sometimes', 'boolean'],
                 'title' => ['missing'],
             ];
         } else {
             $rules += ['title' => ['required', 'string', 'max:150']];
-            foreach (['image', 'remove_image', 'name', 'category', 'specifications'] as $field) {
+            foreach (['name', 'category', 'specifications'] as $field) {
                 $rules[$field] = ['missing'];
             }
         }
+
+        if (in_array($this->route('type'), ['products', 'process-steps'], true)) {
+            $rules += [
+                'image' => [...MediaManager::imageRules(), Rule::prohibitedIf($this->boolean('remove_image'))],
+                'remove_image' => ['sometimes', 'boolean'],
+            ];
+        } else {
+            $rules += ['image' => ['missing'], 'remove_image' => ['missing']];
+        }
+        $rules['image_alt'] = $this->route('type') === 'process-steps'
+            ? ['nullable', 'string', 'max:255']
+            : ['missing'];
 
         return $rules;
     }

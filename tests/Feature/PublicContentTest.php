@@ -31,11 +31,36 @@ class PublicContentTest extends TestCase
         }
         $company = Company::firstOrFail();
         $product = $company->products()->firstOrFail();
-        $this->get(route('company.show', $company->slug))->assertDontSee($product->name)->assertSee(route('company.page', [$company->slug, 'services']).'#products', false);
-        $this->get(route('company.page', [$company->slug, 'services']))->assertSee($product->name);
-        $this->get(route('company.page', [$company->slug, 'home']))->assertRedirect(route('company.show', $company->slug));
+        $this->get(route('company.show', $company->slug))->assertSee($product->name)->assertSee(route('company.show', $company->slug).'#cluster-service-products', false);
+        $this->get(route('company.page', [$company->slug, 'services']))->assertRedirect(route('company.show', $company->slug).'#cluster-service');
+        $this->get(route('company.page', [$company->slug, 'home']))->assertRedirect(route('company.show', $company->slug).'#cluster-home');
         $this->get('/home')->assertRedirect('/');
         $this->get('/pages/about-us')->assertRedirect('/about-us');
+    }
+
+    public function test_subsidiary_home_composes_published_core_pages_into_one_page_clusters(): void
+    {
+        $this->seed();
+        $company = Company::firstOrFail();
+        $history = $company->history;
+        $product = $company->products()->firstOrFail();
+        $response = $this->get(route('company.show', $company->slug))->assertOk()
+            ->assertSee('id="cluster-home"', false)
+            ->assertSee('id="cluster-about-us"', false)
+            ->assertSee('id="cluster-service"', false)
+            ->assertSee('id="cluster-contact"', false)
+            ->assertSee($history)
+            ->assertSee($product->name)
+            ->assertSee('/images/boxes.svg', false)
+            ->assertSee('Ilustrasi bidang')
+            ->assertSee(route('company.show', $company->slug).'#cluster-about-us', false)
+            ->assertSee(route('company.show', $company->slug).'#cluster-service', false)
+            ->assertSee(route('company.show', $company->slug).'#cluster-contact', false);
+
+        $this->assertSame(1, substr_count($response->getContent(), 'id="cluster-service-services"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'id="cluster-contact-contact"'));
+        $this->get(route('company.page', [$company->slug, 'about-us']))
+            ->assertRedirect(route('company.show', $company->slug).'#cluster-about-us');
     }
 
     public function test_publication_is_strict_for_company_site_page_sections_and_items(): void
@@ -164,9 +189,9 @@ class PublicContentTest extends TestCase
         $service = $company->services()->firstOrFail();
         $menu = $site->menus()->where('key', 'header')->firstOrFail();
         $item = MenuItem::factory()->for($menu)->create(['label' => 'Dedicated service target', 'service_id' => $service->id, 'url' => null]);
-        $url = route('company.page', [$company->slug, 'services']).'#services-service-'.$service->id;
+        $url = route('company.show', $company->slug).'#cluster-service-services-service-'.$service->id;
         $this->get(route('company.show', $company->slug))->assertOk()->assertSee('Dedicated service target')->assertSee($url, false);
-        $this->get(route('company.page', [$company->slug, 'services']))->assertSee('id="services-service-'.$service->id.'"', false);
+        $this->get(route('company.page', [$company->slug, 'services']))->assertRedirect(route('company.show', $company->slug).'#cluster-service');
         $service->update(['is_active' => false]);
         $this->get(route('company.show', $company->slug))->assertDontSee('Dedicated service target');
         $this->assertModelExists($item);
@@ -197,5 +222,53 @@ class PublicContentTest extends TestCase
         SectionItem::factory()->create(['page_section_id' => $section->id, 'title' => 'First client', 'sort_order' => 1]);
         SectionItem::factory()->create(['page_section_id' => $section->id, 'title' => 'Limited client', 'sort_order' => 3]);
         $this->get(route('company.show', $site->company->slug))->assertOk()->assertSeeInOrder(['First client', 'Second client'])->assertDontSee('Limited client')->assertDontSee('javascript:alert(1)', false);
+    }
+
+    public function test_capacity_and_vision_mission_admin_fields_are_presented_publicly(): void
+    {
+        $site = $this->publishSite(Company::factory()->create(['is_active' => true]));
+        $home = $site->pages()->where('slug', 'home')->firstOrFail();
+        $capacity = PageSection::factory()->for($home)->create([
+            'key' => 'capacity', 'type' => 'capacity', 'title' => 'Capacity', 'settings' => ['source' => 'items'],
+        ]);
+        SectionItem::factory()->create([
+            'page_section_id' => $capacity->id, 'title' => 'Production capacity', 'value' => '500', 'unit' => 'tons',
+            'settings' => ['icon' => 'factory'],
+        ]);
+        $visionMission = PageSection::factory()->for($home)->create([
+            'key' => 'vision-mission', 'type' => 'vision_mission', 'title' => 'Vision & Mission', 'settings' => ['source' => 'items'],
+        ]);
+        SectionItem::factory()->create([
+            'page_section_id' => $visionMission->id, 'key' => 'vision', 'title' => 'Our direction', 'body' => 'Vision text',
+        ]);
+        SectionItem::factory()->create([
+            'page_section_id' => $visionMission->id, 'key' => 'mission', 'title' => 'Our commitment', 'body' => 'Mission text',
+        ]);
+
+        $this->get(route('company.show', $site->company->slug))->assertOk()
+            ->assertSee('cms-capacity-icon', false)->assertSee('500 tons')
+            ->assertSee('Visi')->assertSee('Misi')->assertSee('Vision text')->assertSee('Mission text');
+    }
+
+    public function test_legacy_incomplete_items_are_skipped_and_holding_inquiry_shows_empty_state(): void
+    {
+        $site = $this->publishSite(Company::factory()->create(['is_active' => true]));
+        $home = $site->pages()->where('slug', 'home')->firstOrFail();
+        $clients = PageSection::factory()->for($home)->create([
+            'key' => 'clients', 'type' => 'clients', 'settings' => ['source' => 'items'],
+        ]);
+        SectionItem::factory()->create(['page_section_id' => $clients->id, 'title' => null, 'body' => null]);
+
+        $this->get(route('company.show', $site->company->slug))->assertOk()->assertDontSee('<h3></h3>', false);
+
+        $site->company->update(['is_active' => false]);
+        $holding = $this->publishSite();
+        $contactPage = Page::factory()->for($holding)->create(['slug' => 'contact', 'title' => 'Contact', 'is_published' => true]);
+        PageSection::factory()->for($contactPage)->create([
+            'key' => 'contact', 'type' => 'contact', 'title' => 'Contact us', 'settings' => ['source' => 'contact_details'],
+        ]);
+        $this->get(route('group.contact'))->assertOk()
+            ->assertSee('Form inquiry belum tersedia')
+            ->assertDontSee('class="inquiry-form"', false);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Actions\Cms\GlobalindoPilot;
 use App\Actions\Cms\SeedOnce;
 use App\Models\Company;
 use App\Models\Service;
@@ -96,6 +97,11 @@ class DynamicContentSeeder extends Seeder
                 ['contact', 'contact', 'Hubungi Kami', true],
             ]],
         ];
+        if (GlobalindoPilot::applies($site)) {
+            foreach (GlobalindoPilot::SECTIONS as $slug => $sections) {
+                $definitions[$slug][1] = $sections;
+            }
+        }
         $pages = [];
         foreach ($definitions as $slug => [$title, $sections]) {
             $page = $site->pages()->firstOrCreate(['slug' => $slug], [
@@ -151,5 +157,9 @@ class DynamicContentSeeder extends Seeder
                 }
             }
         }
+        if (GlobalindoPilot::applies($site)) {
+            app(GlobalindoPilot::class)->align($site);
+        }
+
     }
 }

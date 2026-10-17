@@ -12,7 +12,7 @@ class ProcessStep extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['company_id', 'title', 'description', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'title', 'description', 'image_path', 'image_alt', 'sort_order', 'is_active'];
 
     protected function casts(): array
     {

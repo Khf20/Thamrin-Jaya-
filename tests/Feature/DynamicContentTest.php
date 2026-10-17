@@ -26,7 +26,7 @@ class DynamicContentTest extends TestCase
         $this->seed();
         $this->assertDatabaseCount('sites', 7);
         $this->assertDatabaseCount('pages', 28);
-        $this->assertDatabaseCount('page_sections', 112);
+        $this->assertDatabaseCount('page_sections', 111);
         $this->assertDatabaseCount('section_items', 6);
         $this->assertDatabaseCount('menus', 14);
         $this->assertDatabaseCount('services', 4);
