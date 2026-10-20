@@ -14,6 +14,7 @@ $luminance = function (string $hex): float {
 };
 $onBrand = 1.05 / ($luminance($primary) + .05) >= ($luminance($primary) + .05) / .05 ? '#ffffff' : '#16130f';
 $contactEmail = filter_var($contact['email'] ?? '', FILTER_VALIDATE_EMAIL) ? $contact['email'] : null;
+$footerWhatsapp = preg_match('/^[1-9][0-9]{7,14}$/', $contact['whatsapp'] ?? '') ? $contact['whatsapp'] : null;
 $socialLinks = collect($site->social_links ?? [])->filter(fn ($url): bool => $url && preg_match('#^https?://#i', $url) && filter_var($url, FILTER_VALIDATE_URL));
 @endphp
 <!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ $title }}</title><meta name="description" content="{{ $description }}"><meta name="theme-color" content="{{ $primary }}"><link rel="canonical" href="{{ $canonicalUrl }}"><meta property="og:title" content="{{ $title }}"><meta property="og:description" content="{{ $description }}"><meta property="og:url" content="{{ $canonicalUrl }}"><meta property="og:type" content="website">
@@ -56,10 +57,16 @@ $socialLinks = collect($site->social_links ?? [])->filter(fn ($url): bool => $ur
 </main>
 <footer class="cms-footer"><div class="shell">
 <div class="cms-footer-main">
-<div class="cms-footer-about"><strong>{{ $site->resolvedName() }}</strong>@if($site->footer_description)<p class="cms-copy">{{ $site->footer_description }}</p>@endif
+<div class="cms-footer-about"><div class="cms-footer-brand">@if($footerLogo = \App\Actions\Cms\MediaManager::url($site->logo_path))<img class="cms-footer-logo" src="{{ $footerLogo }}" alt="{{ $site->logo_alt ?: $site->resolvedName() }}">@endif<strong>{{ $site->resolvedName() }}</strong></div>@if($site->footer_description)<p class="cms-copy">{{ $site->footer_description }}</p>@endif
 @if($socialLinks->isNotEmpty())<div class="cms-footer-social">@foreach($socialLinks as $label => $url)<a href="{{ $url }}" target="_blank" rel="noopener noreferrer">{{ ucfirst($label) }} ↗</a>@endforeach</div>@endif</div>
 @if($footerMenu)<nav class="cms-footer-links" aria-label="Navigasi footer"><span class="cms-footer-title">Jelajahi</span>@include('portal.dynamic-menu', ['nodes' => $footerMenu])</nav>@endif
-@if(array_filter([$contact['address'] ?? null, $contact['phone'] ?? null, $contactEmail, $contact['hours'] ?? null]))<div class="cms-footer-contact"><span class="cms-footer-title">Kontak</span>@foreach(['address', 'hours', 'phone'] as $key)@if(!empty($contact[$key]))<p class="cms-copy">{{ $contact[$key] }}</p>@endif @endforeach @if($contactEmail)<a href="mailto:{{ $contactEmail }}">{{ $contactEmail }}</a>@endif</div>@endif
+@if($footerWhatsapp || !empty($contact['phone']) || $contactEmail || !empty($contact['address']))<div class="cms-footer-contact"><span class="cms-footer-title">Kontak</span>
+@if($footerWhatsapp)<a href="https://wa.me/{{ $footerWhatsapp }}" target="_blank" rel="noopener noreferrer">{{ $contact['phone'] ?? ('+'.$footerWhatsapp) }}</a>@elseif(!empty($contact['phone']))<p class="cms-copy">{{ $contact['phone'] }}</p>@endif
+@if($contactEmail)<a href="mailto:{{ $contactEmail }}">{{ $contactEmail }}</a>@endif
+@if(!empty($contact['address']))<p class="cms-copy">{{ $contact['address'] }}</p>@endif
+</div>@endif
 </div>
 <div class="cms-footer-legal"><span>© {{ date('Y') }} {{ $site->copyright_text ?: $site->resolvedName() }}</span></div>
-</div></footer></body></html>
+</div></footer>
+@if($footerWhatsapp)<a class="wa-float" href="https://wa.me/{{ $footerWhatsapp }}?text={{ urlencode('Halo '.$site->resolvedName().', saya ingin bertanya lebih lanjut mengenai layanan Anda.') }}" target="_blank" rel="noopener noreferrer" aria-label="Chat WhatsApp {{ $site->resolvedName() }}"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3C9.1 3 3.5 8.6 3.5 15.5c0 2.5.7 4.8 1.9 6.8L3 29l6.9-2.3c1.9 1 4 1.6 6.1 1.6 6.9 0 12.5-5.6 12.5-12.5S22.9 3 16 3zm0 22.7c-2 0-3.9-.5-5.5-1.5l-.4-.2-4.1 1.4 1.3-4-.3-.4a10.2 10.2 0 0 1-1.6-5.5C5.4 9.7 10.2 5 16 5s10.6 4.7 10.6 10.5S21.8 25.7 16 25.7zm5.8-7.9c-.3-.2-1.9-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.6-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.2-.7-1.7-1-2.3-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.9-.8 2.1-1.5.3-.7.3-1.3.2-1.5-.1-.1-.3-.2-.6-.4z"/></svg></a>@endif
+</body></html>
